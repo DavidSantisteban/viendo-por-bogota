@@ -1,92 +1,161 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Participación Ciudadana Bogotá</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <style>
-        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-        #map { height: 90vh; width: 100%; }
-        #form { padding: 10px; background: #f5f5f5; }
-        input, select, textarea, button {
-            display: block; width: 100%; margin: 6px 0; padding: 6px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa Ciudadano Bogotá</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f2f7f2;
+    }
+    header {
+      background-color: #00796b;
+      color: white;
+      text-align: center;
+      padding: 1rem;
+      font-size: 1.3rem;
+    }
+    #map {
+      height: 80vh;
+      width: 100%;
+    }
+    #form {
+      padding: 1rem;
+      background-color: #e0f2f1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    button {
+      background-color: #00796b;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background-color: #004d40;
+    }
+    #lista-reportes {
+      padding: 1rem;
+    }
+    .reporte {
+      background-color: #ffffff;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 6px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .eliminar {
+      background-color: #c62828;
+      padding: 5px 10px;
+      border-radius: 4px;
+    }
+    .eliminar:hover {
+      background-color: #8e0000;
+    }
+  </style>
 </head>
 <body>
-    <div id="form">
-        <h3>Reportar un problema urbano</h3>
-        <select id="tipo">
-            <option value="bache">Bache</option>
-            <option value="alumbrado">Alumbrado público</option>
-            <option value="basura">Basura acumulada</option>
-            <option value="ruido">Contaminación por ruido</option>
-            <option value="vandalismo">Vandalismo</option>
-            <option value="otro">Otro</option>
-        </select>
-        <textarea id="descripcion" placeholder="Describe brevemente el problema"></textarea>
-        <button id="enviar">Enviar reporte</button>
-        <p><small>Toca en el mapa para seleccionar la ubicación.</small></p>
-    </div>
+  <header>🗺️ Plataforma Ciudadana Bogotá Sostenible</header>
+  <div id="map"></div>
 
-    <div id="map"></div>
+  <div id="form">
+    <label>Descripción del problema:</label>
+    <input type="text" id="descripcion" placeholder="Ej: Basura acumulada en el parque" />
+    
+    <label>Entidad responsable:</label>
+    <select id="entidad">
+      <option value="UAESP">UAESP (Aseo y residuos)</option>
+      <option value="IDU">IDU (Vías e infraestructura)</option>
+      <option value="EAAB">EAAB (Acueducto y alcantarillado)</option>
+      <option value="Secretaría de Ambiente">Secretaría de Ambiente</option>
+      <option value="Otra">Otra</option>
+    </select>
+    
+    <button onclick="registrarReporte()">📍 Registrar Reporte</button>
+  </div>
 
-    <script>
-        const map = L.map('map').setView([4.711, -74.0721], 12); // Centro Bogotá
+  <section id="lista-reportes">
+    <h3>Reportes registrados</h3>
+    <div id="reportes"></div>
+  </section>
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-        }).addTo(map);
+  <script>
+    const map = L.map('map').setView([4.711, -74.0721], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
-        let tempMarker = null;
-        let selectedCoords = null;
+    let marcadores = [];
 
-        map.on('click', function (e) {
-            if (tempMarker) map.removeLayer(tempMarker);
-            selectedCoords = e.latlng;
-            tempMarker = L.marker(e.latlng).addTo(map);
-        });
+    function actualizarLista() {
+      fetch('/')
+        .then(() => location.reload());
+    }
 
-        document.getElementById('enviar').onclick = async function() {
-            if (!selectedCoords) return alert("Selecciona un punto en el mapa.");
-            const tipo = document.getElementById('tipo').value;
-            const descripcion = document.getElementById('descripcion').value;
+    async function registrarReporte() {
+      const desc = document.getElementById('descripcion').value;
+      const entidad = document.getElementById('entidad').value;
 
-            const response = await fetch('/reporte', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    lat: selectedCoords.lat,
-                    lng: selectedCoords.lng,
-                    tipo,
-                    descripcion
-                })
-            });
+      if (!desc) {
+        alert("Por favor, ingresa una descripción.");
+        return;
+      }
 
-            if (response.ok) {
-                alert("Reporte enviado con éxito.");
-                location.reload();
-            }
-        };
+      const latlng = map.getCenter(); // toma la posición actual del mapa como ejemplo
+      const data = {
+        descripcion: desc,
+        entidad: entidad,
+        lat: latlng.lat,
+        lng: latlng.lng
+      };
 
-        // Cargar reportes existentes
-        async function cargarReportes() {
-            const res = await fetch('/data');
-            const reportes = await res.json();
-            reportes.forEach(r => {
-                const popup = `
-                    <b>Tipo:</b> ${r.tipo}<br>
-                    <b>Descripción:</b> ${r.descripcion}<br>
-                    <b>Fecha:</b> ${r.fecha}<br>
-                    <b>Entidad:</b> ${r.entidad}
-                `;
-                L.marker([r.lat, r.lng]).addTo(map).bindPopup(popup);
-            });
-        }
+      const res = await fetch('/reporte', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
 
-        cargarReportes();
-    </script>
+      if (res.ok) {
+        alert("Reporte agregado correctamente.");
+        location.reload();
+      }
+    }
+
+    // Renderizar los reportes en el mapa y en la lista
+    const reportes = {{ reportes|tojson }};
+    const contenedor = document.getElementById('reportes');
+    reportes.forEach(r => {
+      const div = document.createElement('div');
+      div.className = "reporte";
+      div.innerHTML = `
+        <div><b>${r.descripcion}</b><br>Entidad: ${r.entidad}</div>
+        <button class="eliminar" onclick="eliminar(${r.id})">Eliminar</button>`;
+      contenedor.appendChild(div);
+
+      const marcador = L.marker([r.lat, r.lng]).addTo(map)
+        .bindPopup(`<b>${r.descripcion}</b><br>Entidad: ${r.entidad}`);
+      marcadores.push(marcador);
+    });
+
+    async function eliminar(id) {
+      const res = await fetch(`/eliminar/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert("Reporte eliminado.");
+        location.reload();
+      }
+    }
+  </script>
 </body>
 </html>
