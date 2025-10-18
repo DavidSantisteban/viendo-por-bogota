@@ -1,45 +1,28 @@
 from flask import Flask, render_template, request, jsonify
-from datetime import datetime
 
 app = Flask(__name__)
 
-# Lista para almacenar los reportes
+# Lista de reportes almacenados en memoria (solo para prototipo)
 reportes = []
-
-# Diccionario base para asignar entidad según tipo de problema
-ENTIDADES = {
-    "bache": "IDU - Instituto de Desarrollo Urbano",
-    "alumbrado": "UAESP - Unidad Administrativa de Servicios Públicos",
-    "basura": "UAESP - Aseo y Gestión de Residuos",
-    "vandalismo": "Policía Metropolitana de Bogotá",
-    "ruido": "Secretaría de Ambiente",
-    "otro": "Alcaldía Local correspondiente"
-}
 
 @app.route('/')
 def index():
     return render_template('index.html', reportes=reportes)
 
 @app.route('/reporte', methods=['POST'])
-def reporte():
+def agregar_reporte():
     data = request.get_json()
-    tipo = data.get("tipo", "otro").lower()
-    entidad = ENTIDADES.get(tipo, "Alcaldía Local correspondiente")
-    
-    nuevo_reporte = {
-        "lat": data["lat"],
-        "lng": data["lng"],
-        "tipo": tipo,
-        "descripcion": data["descripcion"],
-        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "entidad": entidad
-    }
-    reportes.append(nuevo_reporte)
-    return jsonify({"status": "ok"})
+    if not data:
+        return jsonify({'error': 'Datos vacíos'}), 400
+    data['id'] = len(reportes) + 1  # ID incremental
+    reportes.append(data)
+    return jsonify({'status': 'Reporte agregado', 'id': data['id']})
 
-@app.route('/data')
-def data():
-    return jsonify(reportes)
+@app.route('/eliminar/<int:id>', methods=['DELETE'])
+def eliminar_reporte(id):
+    global reportes
+    reportes = [r for r in reportes if r['id'] != id]
+    return jsonify({'status': 'Reporte eliminado'})
 
 if __name__ == '__main__':
     app.run(debug=True)
