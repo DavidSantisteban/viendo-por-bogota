@@ -1,30 +1,45 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, jsonify
+from datetime import datetime
 
 app = Flask(__name__)
-reportes = []  # Guardará los reportes temporalmente
+
+# Lista para almacenar los reportes
+reportes = []
+
+# Diccionario base para asignar entidad según tipo de problema
+ENTIDADES = {
+    "bache": "IDU - Instituto de Desarrollo Urbano",
+    "alumbrado": "UAESP - Unidad Administrativa de Servicios Públicos",
+    "basura": "UAESP - Aseo y Gestión de Residuos",
+    "vandalismo": "Policía Metropolitana de Bogotá",
+    "ruido": "Secretaría de Ambiente",
+    "otro": "Alcaldía Local correspondiente"
+}
 
 @app.route('/')
 def index():
     return render_template('index.html', reportes=reportes)
 
-@app.route('/agregar', methods=['POST'])
-def agregar():
-    nombre = request.form['nombre']
-    tipo = request.form['tipo']
-    descripcion = request.form['descripcion']
-    latitud = request.form['latitud']
-    longitud = request.form['longitud']
-
+@app.route('/reporte', methods=['POST'])
+def reporte():
+    data = request.get_json()
+    tipo = data.get("tipo", "otro").lower()
+    entidad = ENTIDADES.get(tipo, "Alcaldía Local correspondiente")
+    
     nuevo_reporte = {
-        'nombre': nombre,
-        'tipo': tipo,
-        'descripcion': descripcion,
-        'latitud': latitud,
-        'longitud': longitud
+        "lat": data["lat"],
+        "lng": data["lng"],
+        "tipo": tipo,
+        "descripcion": data["descripcion"],
+        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "entidad": entidad
     }
-
     reportes.append(nuevo_reporte)
-    return redirect('/')
+    return jsonify({"status": "ok"})
+
+@app.route('/data')
+def data():
+    return jsonify(reportes)
 
 if __name__ == '__main__':
     app.run(debug=True)
